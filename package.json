@@ -1,10 +1,10 @@
 {
-  "name": "gemini-code-cli",
+  "name": "dupe-cli",
   "version": "1.0.0",
-  "description": "CLI coding assistant inspired by Claude Code and Codex CLI",
+  "description": "Dupe CLI - Elite AI coding assistant powered by Gemini 3",
   "main": "dist/index.js",
   "bin": {
-    "gemini-code": "./dist/index.js"
+    "dupe": "./dist/index.js"
   },
   "type": "module",
   "scripts": {

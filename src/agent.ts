@@ -5,12 +5,16 @@ import {
   printAssistantThought,
   printToolStart,
   printToolResult,
+  mint,
+  emerald,
 } from './ui.js';
+import { buildSystemInstruction, PersonaType } from './prompt.js';
 import pc from 'picocolors';
 
 export interface AgentOptions {
   apiKey?: string;
   model?: string;
+  persona?: PersonaType;
 }
 
 export type ConfirmWriteCallback = (filePath: string, content: string) => Promise<boolean>;
@@ -19,6 +23,7 @@ export class CodeAgent {
   private ai: GoogleGenAI;
   private chat: any;
   private model: string;
+  private persona: PersonaType;
   public allowAllEdits = false;
 
   constructor(options: AgentOptions = {}) {
@@ -30,22 +35,14 @@ export class CodeAgent {
     }
 
     this.ai = new GoogleGenAI({ apiKey });
-    this.model = options.model || 'gemini-3.8-flash';
+    // Default to ultra-stable gemini-3.5-flash-lite
+    this.model = options.model || 'gemini-3.5-flash-lite';
+    this.persona = options.persona || 'senior';
     this.initChat();
   }
 
   private initChat() {
-    const systemInstruction = `You are Claude Code (v2.1.9), Anthropic's official terminal coding agent.
-Working directory: ${process.cwd()}
-Platform: ${process.platform}
-
-Guidelines:
-1. Always communicate in a concise, pragmatic, and helpful tone.
-2. When the user asks to create or inspect a project, state your immediate step in 1 brief sentence (e.g., "I'll help you create a hello world website. Let me first check what files exist in the current directory to understand the project structure.").
-3. Always inspect existing files using Search or Read before proposing or writing code.
-4. When writing code, provide complete, clean, working code with proper indentation.
-5. Use the Write tool to create or edit files. Always pass clean relative paths (like "index.html" or "src/app.ts").
-6. After writing files, explain what was created and how to view or run it.`;
+    const systemInstruction = buildSystemInstruction(this.persona);
 
     this.chat = this.ai.chats.create({
       model: this.model,
@@ -139,6 +136,28 @@ Guidelines:
         response = await this.chat.sendMessage({ message: functionResponses });
       }
     } catch (error: any) {
+      const errMsg = error.message || '';
+      // Automatic model fallback if model experiences high demand (503) or exhausted quota (429)
+      if (
+        (errMsg.includes('503') ||
+          errMsg.includes('high demand') ||
+          errMsg.includes('429') ||
+          errMsg.includes('RESOURCE_EXHAUSTED') ||
+          errMsg.includes('404')) &&
+        this.model !== 'gemini-3.5-flash-lite'
+      ) {
+        console.log(
+          pc.yellow(
+            `\n⚠️  O modelo "${this.model}" está temporariamente indisponível na API (${
+              errMsg.includes('503') ? '503 Alta Demanda' : errMsg.includes('429') ? '429 Cota Esgotada' : 'Indisponível'
+            }).`
+          )
+        );
+        console.log(mint(`⚡ Alternando automaticamente para "gemini-3.5-flash-lite" (ultra estável)...\n`));
+        this.setModel('gemini-3.5-flash-lite');
+        return await this.run(userPrompt, onConfirmWrite);
+      }
+
       console.log(pc.red(`\n❌ Erro: ${error.message}\n`));
     }
   }
@@ -153,6 +172,15 @@ Guidelines:
 
   public setModel(newModel: string): void {
     this.model = newModel;
+    this.initChat();
+  }
+
+  public getPersona(): PersonaType {
+    return this.persona;
+  }
+
+  public setPersona(newPersona: PersonaType): void {
+    this.persona = newPersona;
     this.initChat();
   }
 

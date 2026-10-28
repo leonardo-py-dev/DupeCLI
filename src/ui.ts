@@ -1,99 +1,39 @@
 import pc from 'picocolors';
 import path from 'node:path';
 
-// Claude Code Terracotta / Coral Color Palette
-export const coral = (str: string) => `\x1b[38;2;217;119;87m${str}\x1b[0m`;
-export const coralBold = (str: string) => `\x1b[1;38;2;217;119;87m${str}\x1b[0m`;
-export const dimCoral = (str: string) => `\x1b[38;2;160;85;60m${str}\x1b[0m`;
+// Dupe Emerald & Mint Color Palette
+export const emerald = (str: string) => `\x1b[38;2;16;185;129m${str}\x1b[0m`;
+export const emeraldBold = (str: string) => `\x1b[1;38;2;16;185;129m${str}\x1b[0m`;
+export const mint = (str: string) => `\x1b[38;2;52;211;153m${str}\x1b[0m`;
+export const dimEmerald = (str: string) => `\x1b[38;2;6;95;70m${str}\x1b[0m`;
+
+// Aliases for compatibility
+export const coral = emerald;
+export const coralBold = emeraldBold;
+export const dimCoral = dimEmerald;
 
 export function getTerminalWidth(): number {
   return process.stdout.columns || 80;
 }
 
+/**
+ * Strips all ANSI CSI, OSC, and styling escape codes from strings
+ */
 export function stripAnsi(str: string): string {
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  return str
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+    .replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, '')
+    .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '')
+    .replace(/\x1b[PX^_][^\x1b]*\x1b\\/g, '')
+    .replace(/\x1b[()][AB012]/g, '');
 }
 
 /**
- * Renders the Claude Code v2.1.9 Welcome Banner Box
+ * Creates an OSC 8 clickable terminal hyperlink
  */
-export function renderWelcomeCard(options?: {
-  version?: string;
-  model?: string;
-  billing?: string;
-  folder?: string;
-}): void {
-  const version = options?.version || 'v2.1.9';
-  const model = options?.model || 'gemini-3.8-flash';
-  const billing = options?.billing || 'API Free Tier';
-  const folder = options?.folder || `~/${path.basename(process.cwd())}`;
-
-  const leftWidth = 38;
-  const rightWidth = 54;
-  const totalInnerWidth = leftWidth + 1 + rightWidth; // + 1 for divider '│'
-
-  // Top border: ╭─ Claude Code v2.1.9 ──────────────────────────────────────╮
-  const titlePart = ` Claude Code ${pc.dim(version)} `;
-  const titleVisibleLen = stripAnsi(titlePart).length;
-  const remainingDashes = Math.max(2, totalInnerWidth - titleVisibleLen - 2);
-  const topBorder = coral('╭─') + coral(pc.bold(' Claude Code ')) + pc.dim(version) + ' ' + coral('─'.repeat(remainingDashes) + '╮');
-
-  const padR = (str: string, width: number) => {
-    const visible = stripAnsi(str).length;
-    return str + ' '.repeat(Math.max(0, width - visible));
-  };
-
-  const centerIn = (str: string, width: number) => {
-    const visible = stripAnsi(str).length;
-    const leftPad = Math.floor((width - visible) / 2);
-    const rightPad = width - visible - leftPad;
-    return ' '.repeat(Math.max(0, leftPad)) + str + ' '.repeat(Math.max(0, rightPad));
-  };
-
-  const mascotLines = [
-    coral('  █   █  '),
-    coral('█████████'),
-    coral('██ █ █ ██'),
-    coral('█████████'),
-    coral('  █   █  '),
-  ];
-
-  const leftCol: string[] = [
-    centerIn(pc.white('Welcome back!'), leftWidth),
-    ' '.repeat(leftWidth),
-    centerIn(mascotLines[0], leftWidth),
-    centerIn(mascotLines[1], leftWidth),
-    centerIn(mascotLines[2], leftWidth),
-    centerIn(mascotLines[3], leftWidth),
-    centerIn(mascotLines[4], leftWidth),
-    ' '.repeat(leftWidth),
-    centerIn(pc.dim(`${model} · ${billing}`), leftWidth),
-    centerIn(pc.dim(folder), leftWidth),
-  ];
-
-  const rightCol: string[] = [
-    padR(' ' + coral('Tips for getting started'), rightWidth),
-    padR(' ' + pc.white('Ask Claude to create a new app or clone a repository'), rightWidth),
-    ' '.repeat(rightWidth),
-    padR(' ' + pc.dim('─'.repeat(rightWidth - 3)), rightWidth),
-    padR(' ' + coral('Recent activity'), rightWidth),
-    padR(' ' + pc.dim('No recent activity'), rightWidth),
-    ' '.repeat(rightWidth),
-    ' '.repeat(rightWidth),
-    ' '.repeat(rightWidth),
-    ' '.repeat(rightWidth),
-  ];
-
-  const bottomBorder = coral('╰' + '─'.repeat(totalInnerWidth) + '╯');
-
-  console.log('\n' + topBorder);
-  for (let i = 0; i < leftCol.length; i++) {
-    console.log(coral('│') + leftCol[i] + coral('│') + rightCol[i] + coral('│'));
-  }
-  console.log(bottomBorder);
-
-  const alternateModel = model === 'gemini-3.8-flash' ? 'gemini-3.1-pro' : 'gemini-3.8-flash';
-  console.log(pc.dim(`\n/model to try ${alternateModel}\n`));
+export function terminalLink(url: string, text?: string): string {
+  const displayText = text || url;
+  return `\x1b]8;;${url}\x1b\\${displayText}\x1b]8;;\x1b\\`;
 }
 
 export interface GeminiModelInfo {
@@ -104,37 +44,141 @@ export interface GeminiModelInfo {
 
 export const AVAILABLE_MODELS: GeminiModelInfo[] = [
   {
-    id: 'gemini-3.8-flash',
-    name: 'Gemini 3.8 Flash',
-    description: 'Padrão: Raciocínio adaptativo com thinking budget, ultra veloz e ideal para código.',
-  },
-  {
-    id: 'gemini-3.1-pro',
-    name: 'Gemini 3.1 Pro',
-    description: 'Frontier: Raciocínio profundo, arquitetura complexa de software e contexto longo.',
-  },
-  {
-    id: 'gemini-3.7-flash',
-    name: 'Gemini 3.7 Flash',
-    description: 'Equilíbrio: Excelente compromisso entre velocidade e raciocínio multi-etapas.',
-  },
-  {
     id: 'gemini-3.5-flash-lite',
     name: 'Gemini 3.5 Flash Lite',
-    description: 'Leve: Baixíssima latência, ideal para tarefas rápidas e menor consumo.',
+    description: 'Padrão Recomendado: Ultra estável, baixíssima latência, sem erros de 503 ou cota.',
+  },
+  {
+    id: 'gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    description: 'Equilíbrio: Excelente compromisso entre velocidade, inteligência de código e estabilidade.',
+  },
+  {
+    id: 'gemini-3-flash-preview',
+    name: 'Gemini 3 Flash Preview',
+    description: 'Preview Oficial: Nova geração Gemini 3 oficial da Google em modo preview.',
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro Preview',
+    description: 'Frontier: Raciocínio profundo para arquiteturas complexas (sujeito à cota da sua conta).',
+  },
+  {
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
+    description: 'Experimental: Thinking budget avançado (pode apresentar instabilidade/503 na Google).',
   },
 ];
 
 /**
- * Bullet points styling matching Claude Code
+ * Renders the Dupe CLI Welcome Banner Box with pixel-perfect alignment
+ */
+export function renderWelcomeCard(options?: {
+  version?: string;
+  model?: string;
+  billing?: string;
+  folder?: string;
+  mouseEnabled?: boolean;
+  persona?: string;
+}): void {
+  const version = options?.version || 'v1.0.0';
+  const model = options?.model || 'gemini-3.5-flash-lite';
+  const billing = options?.billing || 'API Usage Billing';
+  const folder = options?.folder || `~/${path.basename(process.cwd())}`;
+  const isMouseOn = options?.mouseEnabled ?? true;
+  const personaDisplay = options?.persona || 'Sênior';
+
+  const leftWidth = 40;
+  const rightWidth = 56;
+  const totalInnerWidth = leftWidth + 1 + rightWidth; // + 1 for divider '│'
+
+  // Top border: ╭─ Dupe v1.0.0 ──────────────────────────────────────────────╮
+  const titlePart = ` Dupe ${version} `;
+  const titleVisibleLen = stripAnsi(titlePart).length;
+  const remainingDashes = Math.max(2, totalInnerWidth - titleVisibleLen - 2);
+  const topBorder = emerald('╭─') + emerald(pc.bold(' Dupe ')) + pc.dim(version) + ' ' + emerald('─'.repeat(remainingDashes) + '╮');
+
+  const padR = (str: string, width: number) => {
+    const visible = stripAnsi(str).length;
+    if (visible > width) {
+      const clean = stripAnsi(str).slice(0, width - 3) + '...';
+      return clean + ' '.repeat(Math.max(0, width - stripAnsi(clean).length));
+    }
+    return str + ' '.repeat(Math.max(0, width - visible));
+  };
+
+  const centerIn = (str: string, width: number) => {
+    const visible = stripAnsi(str).length;
+    if (visible > width) {
+      const clean = stripAnsi(str).slice(0, width - 3) + '...';
+      return clean;
+    }
+    const leftPad = Math.floor((width - visible) / 2);
+    const rightPad = width - visible - leftPad;
+    return ' '.repeat(Math.max(0, leftPad)) + str + ' '.repeat(Math.max(0, rightPad));
+  };
+
+  // Futuristic Cyber Robot mascot (exact 11 chars width)
+  const mascotLines = [
+    emerald('    █▄█    '),
+    emerald('  ▄█████▄  '),
+    emerald('  █ ') + mint('■') + emerald(' █ ') + mint('■') + emerald(' █  '),
+    emerald('  █▄▄▄▄▄█  '),
+    emerald('   ▀   ▀   '),
+  ];
+
+  const leftCol: string[] = [
+    centerIn(pc.bold(pc.white('Welcome to Dupe!')), leftWidth),
+    ' '.repeat(leftWidth),
+    centerIn(mascotLines[0], leftWidth),
+    centerIn(mascotLines[1], leftWidth),
+    centerIn(mascotLines[2], leftWidth),
+    centerIn(mascotLines[3], leftWidth),
+    centerIn(mascotLines[4], leftWidth),
+    ' '.repeat(leftWidth),
+    centerIn(pc.dim(`${model} · ${personaDisplay}`), leftWidth),
+    centerIn(mint(folder), leftWidth),
+  ];
+
+  const rightCol: string[] = [
+    padR(' ' + emerald('Tips for getting started'), rightWidth),
+    padR(' ' + pc.white('Ask Dupe to create code, inspect files or run tests'), rightWidth),
+    ' '.repeat(rightWidth),
+    padR(' ' + pc.dim('─'.repeat(rightWidth - 3)), rightWidth),
+    padR(' ' + emerald('Mouse, Teclado & Personalidades'), rightWidth),
+    padR(' ' + pc.white('Use /model para IA, /persona para modo de resposta'), rightWidth),
+    padR(' ' + pc.dim('Clique nos botões ou use atalhos numéricos 1-6'), rightWidth),
+    ' '.repeat(rightWidth),
+    padR(' ' + emerald('Recent activity'), rightWidth),
+    padR(' ' + pc.dim('No recent activity'), rightWidth),
+  ];
+
+  const bottomBorder = emerald('╰' + '─'.repeat(totalInnerWidth) + '╯');
+
+  console.log('\n' + topBorder);
+  for (let i = 0; i < leftCol.length; i++) {
+    console.log(emerald('│') + leftCol[i] + emerald('│') + rightCol[i] + emerald('│'));
+  }
+  console.log(bottomBorder);
+
+  const alternateModel = model === 'gemini-3.5-flash-lite' ? 'gemini-3.5-flash' : 'gemini-3.5-flash-lite';
+  const mouseBadge = isMouseOn
+    ? mint('🖱️ Mouse: Ativo (1-6)')
+    : pc.dim('○ Mouse: Inativo');
+
+  console.log(pc.dim(`\n💡 Dupe CLI · /model para ${alternateModel} · /persona para estilo · ${mouseBadge}\n`));
+}
+
+/**
+ * Bullet points styling
  */
 export function printAssistantThought(text: string) {
-  console.log(`${pc.white('●')} ${text}`);
+  console.log(`${mint('●')} ${text}`);
 }
 
 export function printToolStart(toolName: string, argsStr: string, isSearchOrRead = false) {
-  const bullet = isSearchOrRead ? pc.green('●') : pc.white('●');
-  console.log(`${bullet} ${pc.bold(toolName)}(${pc.dim(argsStr)})`);
+  const bullet = isSearchOrRead ? emerald('●') : mint('●');
+  console.log(`${bullet} ${emeraldBold(toolName)}(${pc.dim(argsStr)})`);
 }
 
 export function printToolResult(resultSummary: string) {
@@ -155,10 +199,10 @@ export function highlightSyntax(code: string, language = 'html'): string {
     .map((line) => {
       // Tags
       let highlighted = line
-        .replace(/(<\/?[a-zA-Z0-9\-!]+)/g, pc.magenta('$1'))
-        .replace(/(>)/g, pc.magenta('$1'))
+        .replace(/(<\/?[a-zA-Z0-9\-!]+)/g, pc.cyan('$1'))
+        .replace(/(>)/g, pc.cyan('$1'))
         // Attributes: lang=, charset=, name=, content=
-        .replace(/(\s+)([a-zA-Z\-:]+)(=)/g, (_, sp, attr, eq) => `${sp}${pc.green(attr)}${pc.dim(eq)}`)
+        .replace(/(\s+)([a-zA-Z\-:]+)(=)/g, (_, sp, attr, eq) => `${sp}${mint(attr)}${pc.dim(eq)}`)
         // Attribute values: "..." or '...'
         .replace(/(".*?"|'.*?')/g, (match) => pc.yellow(match));
 
@@ -168,11 +212,11 @@ export function highlightSyntax(code: string, language = 'html'): string {
 }
 
 /**
- * Renders the exact Claude Code file creation preview box with line numbers
+ * Renders file creation preview box with line numbers
  */
 export function renderFileCreationPreview(filePath: string, content: string): void {
   printHorizontalDivider();
-  console.log(pc.cyan(pc.bold(`\nCreate file ${filePath}\n`)));
+  console.log(emerald(pc.bold(`\nCreate file ${filePath}\n`)));
 
   const lines = content.split('\n');
   const maxLinesToShow = 35;
